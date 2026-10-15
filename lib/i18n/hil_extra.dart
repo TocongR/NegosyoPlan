@@ -28,4 +28,21 @@ const hilExtra = <String, String>{
   'Note from OLEDIPO': 'Nota halin sa OLEDIPO',
   'Fix my answers': 'Ayuhon ang akon mga sabat',
   'Fix files and submit': 'Ayuhon ang mga file kag ipasa',
+  // ---- status pop-up, resubmitting, forms sent with the files ----
+  'OLEDIPO returned your application': 'Ginbalik sang OLEDIPO ang imo aplikasyon',
+  'Your application is accepted': 'Gin-akseptar ang imo aplikasyon',
+  'Later': 'Sa ulihi na',
+  'Fix now': 'Ayuhon subong',
+  'Submit again to OLEDIPO': 'Ipasa liwat sa OLEDIPO',
+  'Submit again to OLEDIPO?': 'Ipasa liwat sa OLEDIPO?',
+  'Your changes will be sent to OLEDIPO to be checked again.': 'Ipadala sa OLEDIPO ang imo mga ginbag-o para tsekon liwat.',
+  'You can now replace, remove or add files. If OLEDIPO asked you to fix an answer, fix it first, then come back here and submit again.':
+      'Mahimo mo na bag-uhon, kuhaon ukon dugangan ang mga file. Kon may sabat nga ginpaayo ang OLEDIPO, ayuha anay ini, dayon balik diri kag ipasa liwat.',
+  'Forms we made for you': 'Mga form nga ginhimo namon para sa imo',
+  'Sent with your files. Nothing to upload.': 'Ipadala upod sa imo mga file. Wala sang i-upload.',
+  'These are made from your answers each time you submit, so OLEDIPO always gets the latest version.':
+      'Ginahimo ini halin sa imo mga sabat kada pasa mo, gani ang pinakabag-o nga bersyon ang makuha sang OLEDIPO.',
+  'Application form (Annex A)': 'Application form (Annex A)',
+  'Business plan (Annex D)': 'Business plan (Annex D)',
+  'Financial statements': 'Financial statements',
 };

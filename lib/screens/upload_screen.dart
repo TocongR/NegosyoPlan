@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 
 import '../config.dart';
 import '../i18n/tr.dart';
+import '../services/generated_docs.dart';
 import '../services/requirement_store.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
@@ -26,7 +27,12 @@ import '../widgets/status_card.dart';
 /// * Training certificates — one or more.
 ///
 /// Files are kept on this phone (SQLite list + copies in the app's folder).
-/// On Submit they are sent online through [AppState.backend] (lib/cloud/).
+/// On Submit they are sent online through [AppState.backend] (lib/cloud/),
+/// together with Annex A, Annex D and the financial statements, which the
+/// app makes from the answers (see [GeneratedDoc]).
+///
+/// When OLEDIPO returns the application for completion, the files can be
+/// replaced, removed or added again, and the application submitted again.
 class UploadScreen extends StatefulWidget {
   const UploadScreen({super.key});
   @override
@@ -37,8 +43,7 @@ class _UploadScreenState extends State<UploadScreen> {
   bool _busy = false;
 
   /// Lets the owner pick one PDF. Returns its bytes and name, or null.
-     /// Lets the owner pick one PDF. Returns its bytes and name, or null.
-   Future<(Uint8List, String)?> _pickPdf() async {
+ Future<(Uint8List, String)?> _pickPdf() async {
      const pdfs = XTypeGroup(label: 'PDF', extensions: ['pdf'], mimeTypes: ['application/pdf']);
      final file = await openFile(acceptedTypeGroups: [pdfs]);
      if (file == null) return null;
@@ -108,11 +113,13 @@ class _UploadScreenState extends State<UploadScreen> {
             kind: 'training', title: 'Food Safety and Handling', provider: 'DTI Negosyo Center', date: 'Mar 2025', bytes: await pdf('TEST · Training certificate'), fileName: 'food-safety.pdf');
       });
 
-  void _view(ReqFile f) => Navigator.of(context).push(MaterialPageRoute(
+  void _view(ReqFile f) => _viewPdf(f.fileName, (_) => File(f.path).readAsBytes());
+
+  void _viewPdf(String title, Future<Uint8List> Function(dynamic) build) => Navigator.of(context).push(MaterialPageRoute(
         builder: (_) => Scaffold(
-          appBar: AppBar(title: Text(f.fileName, style: const TextStyle(fontSize: 17)), backgroundColor: Colors.white, surfaceTintColor: Colors.white),
+          appBar: AppBar(title: Text(title, style: const TextStyle(fontSize: 17)), backgroundColor: Colors.white, surfaceTintColor: Colors.white),
           body: PdfPreview(
-            build: (_) => File(f.path).readAsBytes(),
+            build: build,
             canChangeOrientation: false,
             canChangePageFormat: false,
             canDebug: false,
@@ -180,6 +187,7 @@ class _UploadScreenState extends State<UploadScreen> {
     final trainings = app.trainingFiles;
     // Locked after submitting, unless OLEDIPO returned it for completion.
     final done = !app.canEditRequirements;
+    final again = app.returnedForCompletion;
     final missing = [
       if (permit == null) 'Business permit',
       if (annexC == null) 'Certificate of Residency and Business Operation',
@@ -200,10 +208,15 @@ class _UploadScreenState extends State<UploadScreen> {
         if (done)
           BigButton('See next steps', onPressed: () => Navigator.pushNamed(context, '/tracker'))
         else
-          BigButton('Submit to OLEDIPO', icon: Icons.send_outlined, onPressed: _busy || missing.isNotEmpty ? null : () => _submit(app)),
+          BigButton(again ? 'Submit again to OLEDIPO' : 'Submit to OLEDIPO', icon: Icons.send_outlined, onPressed: _busy || missing.isNotEmpty ? null : () => _submit(app)),
       ]),
       children: [
-        Text(tr('Last step. Add each paper as a PDF. You can scan it with your phone’s camera or a scanner app and save it as PDF.'), style: AppText.lead),
+        if (again) ...[
+          const ApplicationStatusCard(),
+          NoteBox('You can now replace, remove or add files. If OLEDIPO asked you to fix an answer, fix it first, then come back here and submit again.',
+              kind: NoteKind.warn),
+        ] else
+          Text(tr('Last step. Add each paper as a PDF. You can scan it with your phone’s camera or a scanner app and save it as PDF.'), style: AppText.lead),
         if (_busy) const LinearProgressIndicator(),
         _section(
           n: 1,
@@ -235,8 +248,27 @@ class _UploadScreenState extends State<UploadScreen> {
             addButton(trainings.isEmpty ? 'Add a training certificate' : 'Add another certificate', () => _addTraining(app)),
           ],
         ),
+        _section(
+          n: 4,
+          title: 'Forms we made for you',
+          rule: 'Sent with your files. Nothing to upload.',
+          note: 'These are made from your answers each time you submit, so OLEDIPO always gets the latest version.',
+          children: [
+            for (final g in GeneratedDoc.all)
+              Container(
+                padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
+                decoration: BoxDecoration(color: AppColors.tint2, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.tintBorder)),
+                child: Row(children: [
+                  const Icon(Icons.description_outlined, color: AppColors.primary),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text(tr(g.title), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700))),
+                  IconButton(tooltip: trn('View'), onPressed: () => _viewPdf(g.fileName, (_) => g.build(app)), icon: const Icon(Icons.visibility_outlined)),
+                ]),
+              ),
+          ],
+        ),
         if (!done && missing.isNotEmpty) NoteBox('Still needed: ${missing.join(', ')}.', kind: NoteKind.warn),
-        const ApplicationStatusCard(),
+        if (!again) const ApplicationStatusCard(),
         NoteBox(app.backend == null
             ? 'For now your files are kept only on this phone. Sending them to OLEDIPO will be added later.'
             : 'When you submit, your answers and PDFs are sent to OLEDIPO. You need internet for this step.'),
@@ -251,11 +283,14 @@ class _UploadScreenState extends State<UploadScreen> {
   }
 
   Future<void> _submit(AppState app) async {
+    final again = app.returnedForCompletion;
     final ok = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
-        title: Text(tr('Submit to OLEDIPO?')),
-        content: Text(tr('Your documents and requirements will be submitted for checking. You cannot change the files after this.')),
+        title: Text(tr(again ? 'Submit again to OLEDIPO?' : 'Submit to OLEDIPO?')),
+        content: Text(tr(again
+            ? 'Your changes will be sent to OLEDIPO to be checked again.'
+            : 'Your documents and requirements will be submitted for checking. You cannot change the files after this.')),
         actions: [
           TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Cancel'))),
           FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Submit'))),

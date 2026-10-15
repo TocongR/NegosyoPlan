@@ -161,6 +161,14 @@ class AppState extends ChangeNotifier {
       ..staffNote = note);
   }
 
+  /// OLEDIPO changed the status and the owner has not been told yet (see StatusWatcher).
+  bool get hasStatusNews =>
+      submitted && (returnedForCompletion || accepted) && (data.appStatus != data.statusSeen || data.staffNote != data.noteSeen);
+
+  void markStatusSeen() => change((d) => d
+    ..statusSeen = d.appStatus
+    ..noteSeen = d.staffNote);
+
   bool get returnedForCompletion => data.appStatus == 'Returned for completion';
   bool get accepted => data.appStatus == 'Accepted';
 
@@ -410,6 +418,8 @@ class AppState extends ChangeNotifier {
       ..submittedAt = now().toIso8601String()
       ..appStatus = 'Pending'
       ..staffNote = ''
+      ..statusSeen = 'Pending'
+      ..noteSeen = ''
       ..trackerAt = 4); // printed, signed, uploaded, submitted; now with the committee
     await loadRequirements();
   }

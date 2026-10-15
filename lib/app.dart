@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'admin/admin_shell.dart';
-import 'ai/screen_context.dart';
 import 'logic/statements.dart';
 import 'screens/account_screens.dart';
 import 'screens/chatbot_screen.dart';
@@ -16,6 +15,7 @@ import 'screens/onboarding_screens.dart';
 import 'screens/review_screens.dart';
 import 'state/app_state.dart';
 import 'theme/app_theme.dart';
+import 'widgets/status_watcher.dart';
 
 /// Every screen in the NegosyoPlan design canvas, by route.
 final Map<String, WidgetBuilder> appRoutes = {
@@ -98,6 +98,7 @@ class NegosyoPlanApp extends StatefulWidget {
 
 class _NegosyoPlanAppState extends State<NegosyoPlanApp> {
   late final _observer = _ResumeObserver(context.read<AppState>());
+  final _top = TopRouteObserver();
 
   @override
   Widget build(BuildContext context) {
@@ -107,13 +108,14 @@ class _NegosyoPlanAppState extends State<NegosyoPlanApp> {
       title: 'NegosyoPlan',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
+      navigatorKey: appNavigatorKey,
       initialRoute: '/',
       routes: appRoutes,
-      // CurrentScreen lets the Negosyo Helper know which screen you are on.
-      navigatorObservers: [_observer, CurrentScreen.instance],
+      navigatorObservers: [_observer, _top],
       builder: (context, child) => MediaQuery(
         data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(scale)),
-        child: child ?? const SizedBox.shrink(),
+        // Pop-up when OLEDIPO returns or accepts the application.
+        child: StatusWatcher(child: child ?? const SizedBox.shrink()),
       ),
     );
   }

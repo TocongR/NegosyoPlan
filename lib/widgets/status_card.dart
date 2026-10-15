@@ -15,6 +15,8 @@ class ApplicationStatusCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
     if (!app.submitted) return const SizedBox.shrink();
+    // On the upload screen itself, "Fix files and submit" would open the same screen.
+    final onUploadScreen = ModalRoute.of(context)?.settings.name == '/requirements';
 
     final (IconData icon, String title, String text, Color bg, Color fg) = switch (app.data.appStatus) {
       'Accepted' => (
@@ -68,7 +70,14 @@ class ApplicationStatusCard extends StatelessWidget {
               ]),
             ),
           ],
-          if (app.returnedForCompletion) ...[
+          if (app.returnedForCompletion && onUploadScreen) ...[
+            const SizedBox(height: 12),
+            OutlinedButton(
+              onPressed: () => Navigator.pushNamed(context, '/check'),
+              style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(50)),
+              child: Text(tr('Fix my answers')),
+            ),
+          ] else if (app.returnedForCompletion) ...[
             const SizedBox(height: 12),
             Row(children: [
               Expanded(

@@ -44,7 +44,7 @@ class AuthService {
         'name': name.trim(),
         'mobile': AppState.normalizeMobile(mobile),
         'createdAt': FieldValue.serverTimestamp(),
-      });
+      }, SetOptions(merge: true)); // merge: keeps the notification token if it was saved first
       return user.uid;
     } on FirebaseAuthException catch (e) {
       throw AuthFailure(_message(e));

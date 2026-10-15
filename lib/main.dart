@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -7,6 +9,7 @@ import 'app.dart';
 import 'cloud/auth_service.dart';
 import 'cloud/cloud_backend.dart';
 import 'cloud/cloud_config.dart';
+import 'cloud/push_service.dart';
 import 'firebase_options.dart'; // made by `flutterfire configure`
 import 'state/app_state.dart';
 
@@ -22,8 +25,12 @@ Future<void> main() async {
     try {
       await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
       state.backend = CloudBackend();
-      state.onSignOut = AuthService.logOut;
+      state.onSignOut = () async {
+        await PushService.forget(); // stop this account's notifications on this phone
+        await AuthService.logOut();
+      };
       AuthService.watchStatus(state); // shows Pending / Returned / Accepted from OLEDIPO
+      unawaited(PushService.start()); // phone notifications when OLEDIPO decides
     } catch (e) {
       debugPrint('Firebase not started, Submit stays on this phone: $e');
     }
