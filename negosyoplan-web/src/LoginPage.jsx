@@ -43,17 +43,17 @@ export default function LoginPage({ notice }) {
     <div className="login-wrap">
       <form className="card login" onSubmit={submit}>
         <div className="brand big">
-          <span className="logo">NP</span>
+          
           <span>
-            NegosyoPlan <b>Staff</b>
-            <small>OLEDIPO · EMBRACE loan review</small>
+            NegosyoPlan <b>Admin</b>
+            <small>OLEDIPO · EMBRACE</small>
           </span>
         </div>
         {notice && <div className="alert red">{notice}</div>}
         {error && <div className="alert red">{error}</div>}
         {info && <div className="alert green">{info}</div>}
         <label>
-          Staff email
+          Email
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" required />
         </label>
         <label>
@@ -63,9 +63,9 @@ export default function LoginPage({ notice }) {
         <button className="btn primary" disabled={busy}>
           {busy ? 'Logging in…' : 'Log in'}
         </button>
-        <button type="button" className="link" onClick={reset}>
+        {/* <button type="button" className="link" onClick={reset}>
           Forgot password
-        </button>
+        </button> */}
       </form>
     </div>
   );

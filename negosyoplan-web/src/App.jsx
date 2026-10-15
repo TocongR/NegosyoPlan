@@ -58,21 +58,29 @@ export default function App() {
 
   return (
     <div className="shell">
-      <header className="topbar">
+      <aside className="sidebar">
         <a href="#/" className="brand">
           <span className="logo">NP</span>
-          <span>
-            NegosyoPlan <b>Staff</b>
-            <small>OLEDIPO · EMBRACE loan review</small>
-          </span>
+          <span className="brand-name">NegosyoPlan</span>
         </a>
-        <div className="who">
-          <span>{staff.name || staff.email}</span>
-          <button className="btn ghost sm" onClick={() => signOut(auth)}>
+        <div className="brand-sub">OLEDIPO Admin · EMBRACE Program</div>
+
+        <nav className="nav">
+          <a href="#/" className="nav-item on">
+            MSME Passports
+          </a>
+        </nav>
+
+        <div className="side-foot">
+          Signed in as
+          <br />
+          <b>{staff.name || staff.email}</b> · Admin
+          <button className="btn side-out" onClick={() => signOut(auth)}>
             Log out
           </button>
         </div>
-      </header>
+      </aside>
+
       <main className="content">
         {route.page === 'app' ? <ApplicationPage id={route.id} staff={staff} /> : <ApplicationsPage />}
       </main>
