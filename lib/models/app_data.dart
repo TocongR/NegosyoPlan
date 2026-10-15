@@ -7,6 +7,7 @@ import '../logic/statements.dart';
 /// every amount in [YearStatements] is typed by the owner.
 class AppData {
   // ---- account (stays on the phone) ----
+  String uid = ''; // account id (Firebase); empty for a phone-only account
   String accountName = '';
   String mobile = '';
   String pinHash = '';
@@ -42,6 +43,8 @@ class AppData {
   bool consentShare = false;
   int trackerAt = 0;
   String submittedAt = ''; // when the owner submitted (ISO date), empty if not yet
+  String appStatus = ''; // set by OLEDIPO staff: Pending · Returned for completion · Accepted
+  String staffNote = ''; // what staff asked to fix, when returned
   Set<String> keptWarnings = {};
 
   // ---- settings ----
@@ -52,6 +55,7 @@ class AppData {
   AppData();
 
   Map<String, dynamic> toJson() => {
+        'uid': uid,
         'accountName': accountName,
         'mobile': mobile,
         'pinHash': pinHash,
@@ -70,6 +74,8 @@ class AppData {
         'consentShare': consentShare,
         'trackerAt': trackerAt,
         'submittedAt': submittedAt,
+        'appStatus': appStatus,
+        'staffNote': staffNote,
         'keptWarnings': keptWarnings.toList(),
         'textSize': textSize,
         'readAloud': readAloud,
@@ -80,6 +86,7 @@ class AppData {
     Map<String, String> strMap(dynamic m) => (m as Map? ?? {}).map((k, v) => MapEntry(k.toString(), v.toString()));
     List<Map<String, String>> rows(dynamic l) => (l as List? ?? []).map((r) => strMap(r)).toList();
     final d = AppData()
+      ..uid = j['uid'] as String? ?? ''
       ..accountName = j['accountName'] as String? ?? ''
       ..mobile = j['mobile'] as String? ?? ''
       ..pinHash = j['pinHash'] as String? ?? ''
@@ -98,6 +105,8 @@ class AppData {
       ..consentShare = j['consentShare'] as bool? ?? false
       ..trackerAt = j['trackerAt'] as int? ?? 0
       ..submittedAt = j['submittedAt'] as String? ?? ''
+      ..appStatus = j['appStatus'] as String? ?? ''
+      ..staffNote = j['staffNote'] as String? ?? ''
       ..keptWarnings = ((j['keptWarnings'] as List?) ?? []).map((e) => e.toString()).toSet()
       ..textSize = j['textSize'] as int? ?? 0
       ..readAloud = j['readAloud'] as bool? ?? false

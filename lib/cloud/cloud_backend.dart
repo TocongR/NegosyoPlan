@@ -9,7 +9,7 @@ import '../state/app_state.dart';
 import 'drive_uploader.dart';
 
 /// Sends a submitted application online:
-/// 1. signs in to Firebase anonymously (no account needed from the owner),
+/// 1. uses the owner's account (logged in with mobile number and PIN),
 /// 2. uploads each requirement PDF to Google Drive (folder per application),
 /// 3. saves the answers and the file links in Firestore:
 ///    applications/{uid}            answers, names, status "Pending"
@@ -26,16 +26,13 @@ class CloudBackend implements SubmitBackend {
 
   FirebaseFirestore get _db => FirebaseFirestore.instance;
 
+  /// The logged-in account. (Anonymous sign-in is no longer used.)
   Future<String> _uid() async {
-    try {
-      final auth = FirebaseAuth.instance;
-      final user = auth.currentUser ?? (await auth.signInAnonymously()).user;
-      if (user == null) throw Exception('no user');
-      return user.uid;
-    } on FirebaseAuthException catch (e) {
-      throw CloudStepError('Step 1 · Firebase sign-in', '${e.code}: ${e.message}'
-          '${e.code == 'operation-not-allowed' || e.code == 'admin-restricted-operation' ? '\n→ Turn on Anonymous sign-in: Firebase console → Authentication → Sign-in method → Anonymous.' : ''}');
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      throw const CloudStepError('Step 1 · Account', 'You are not logged in. Please log out and log in again, then submit.');
     }
+    return user.uid;
   }
 
   @override
@@ -68,7 +65,9 @@ class CloudBackend implements SubmitBackend {
     final doc = _db.collection('applications').doc(uid);
     final batch = _db.batch()
       ..set(doc, {
-        'status': 'Pending',
+        'status': 'Pending', // staff change this in Firestore: Returned for completion · Accepted
+        'staffNote': '',
+        'userId': uid,
         'ownerName': owner,
         'businessName': business,
         'mobile': app.data.mobile,

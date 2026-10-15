@@ -10,6 +10,7 @@ import 'statement_download.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
 import '../widgets/form.dart';
+import '../widgets/status_card.dart';
 import '../i18n/tr.dart';
 
 // S20 Consent · S21 Documents · S22 Preview · S22b Official form · S23 Submission tracker
@@ -304,6 +305,7 @@ class TrackerScreen extends StatelessWidget {
       gap: 0,
       footer: Footer([BigButton('Go to Home', onPressed: () => Navigator.pushNamedAndRemoveUntil(context, '/home', (r) => false))]),
       children: [
+        const Padding(padding: EdgeInsets.only(top: 12), child: ApplicationStatusCard()),
         Padding(padding: EdgeInsets.only(top: 12, bottom: 20), child: Text(tr('Done outside the app. Mark each one when finished.'), style: AppText.lead)),
         for (var i = 0; i < steps.length; i++)
           IntrinsicHeight(

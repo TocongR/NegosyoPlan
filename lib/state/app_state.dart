@@ -84,8 +84,12 @@ class AppState extends ChangeNotifier {
   /// Before real use: salted, slow hash (PBKDF2/Argon2) and attempt limits.
   static String hashPin(String mobile, String pin) => sha256.convert(utf8.encode('${normalizeMobile(mobile)}:$pin')).toString();
 
-  void createAccount({required String name, required String mobile, required String pin}) {
+  /// Makes the account on this phone. [uid] is the Firebase account id (empty
+  /// for a phone-only account). Answers from another account are cleared first.
+  void createAccount({required String name, required String mobile, required String pin, String uid = ''}) {
+    if (data.uid != uid || (hasAccount && normalizeMobile(mobile) != data.mobile)) _resetFor(uid);
     change((d) {
+      d.uid = uid;
       d.accountName = name.trim();
       d.mobile = normalizeMobile(mobile);
       d.pinHash = hashPin(mobile, pin);
@@ -108,10 +112,60 @@ class AppState extends ChangeNotifier {
     return ok;
   }
 
+  /// Called after logging in online. If the phone holds another account's
+  /// answers, they are replaced (by the answers saved online, if any).
+  void startSession({required String uid, required String name, required String mobile, required String pin, AppData? restored}) {
+    final sameAccount = data.uid == uid || (data.uid.isEmpty && data.mobile == normalizeMobile(mobile));
+    if (!sameAccount) {
+      _resetFor(uid, restored: restored);
+    } else if (data.v.isEmpty && restored != null) {
+      _resetFor(uid, restored: restored);
+    }
+    change((d) {
+      d.uid = uid;
+      if (name.trim().isNotEmpty) d.accountName = name.trim();
+      d.mobile = normalizeMobile(mobile);
+      d.pinHash = hashPin(mobile, pin);
+      d.verified = true;
+    });
+    loggedIn = true;
+  }
+
+  void _resetFor(String uid, {AppData? restored}) {
+    final keepLang = data.lang, keepChosen = data.langChosen;
+    data = (restored ?? AppData())
+      ..uid = uid
+      ..pinHash = ''
+      ..lang = keepLang
+      ..langChosen = keepChosen;
+    reqFiles = [];
+    reqStore.clear();
+  }
+
+  /// Runs when the owner logs out (signs out of Firebase; set in main.dart).
+  Future<void> Function()? onSignOut;
+
   void logout() {
     loggedIn = false;
+    onSignOut?.call();
     notifyListeners();
   }
+
+  // ---------------- status from OLEDIPO ----------------
+
+  /// Status staff set on the submitted application (see AuthService.watchStatus).
+  void setRemoteStatus(String status, String note) {
+    if (status == data.appStatus && note == data.staffNote) return;
+    change((d) => d
+      ..appStatus = status
+      ..staffNote = note);
+  }
+
+  bool get returnedForCompletion => data.appStatus == 'Returned for completion';
+  bool get accepted => data.appStatus == 'Accepted';
+
+  /// Requirements can be changed before submitting, or when OLEDIPO returned the application.
+  bool get canEditRequirements => !submitted || returnedForCompletion;
 
   /// Fill the app with the sample business (keeps the account).
   void loadSample() {
@@ -354,6 +408,8 @@ class AppState extends ChangeNotifier {
     await reqStore.markAllSent();
     change((d) => d
       ..submittedAt = now().toIso8601String()
+      ..appStatus = 'Pending'
+      ..staffNote = ''
       ..trackerAt = 4); // printed, signed, uploaded, submitted; now with the committee
     await loadRequirements();
   }

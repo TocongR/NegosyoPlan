@@ -1,4 +1,5 @@
 import 'hil.dart';
+import 'hil_extra.dart';
 
 /// On-screen language. The app screens follow the language the owner picked
 /// (Hiligaynon by default). Printed documents — the PDFs, the Word forms and
@@ -14,7 +15,7 @@ class Lang {
 /// Shows [s] in the owner's language. Text with no translation stays English.
 String tr(String s) {
   if (Lang.code != 'hil' || s.isEmpty) return s;
-  final exact = hil[s];
+  final exact = hil[s] ?? hilExtra[s];
   if (exact != null) return exact;
   for (final (re, build) in _patterns) {
     final m = re.firstMatch(s);
@@ -58,7 +59,7 @@ final List<(RegExp, String Function(Match))> _patterns = [
       (m) => 'Ang barangay certificate nagakinahanglan sang bisan 2 ka trabahante nga 2 ka tuig na ukon labaw sa imo kag nagaestar sa Iloilo. May ${_g(m, 1)} ka.'),
   (RegExp(r'^(\d+) of (\d+) files? ready$'), (m) => '${_g(m, 1)} sa ${_g(m, 2)} ka file ang handa na'),
   (RegExp(r'^(\d+) of (\d+) files$'), (m) => '${_g(m, 1)} sa ${_g(m, 2)} ka file'),
-  (RegExp(r'^(\d+) of 4 digits entered$'), (m) => '${_g(m, 1)} sa 4 ka numero ang na-type'),
+  (RegExp(r'^(\d+) of (\d+) digits entered$'), (m) => '${_g(m, 1)} sa ${_g(m, 2)} ka numero ang na-type'),
   (RegExp(r'^(\d+) of (\d+)$'), (m) => '${_g(m, 1)} sa ${_g(m, 2)}'),
   (RegExp(r'^Still needed: (.+)\.$'), (m) => 'Kinahanglan pa: ${_g(m, 1).split(', ').map(tr).join(', ')}.'),
   (RegExp(r'^(\d+) left$'), (m) => '${_g(m, 1)} pa ang nabilin'),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'admin/admin_shell.dart';
+import 'ai/screen_context.dart';
 import 'logic/statements.dart';
 import 'screens/account_screens.dart';
 import 'screens/chatbot_screen.dart';
@@ -108,7 +109,8 @@ class _NegosyoPlanAppState extends State<NegosyoPlanApp> {
       theme: AppTheme.light(),
       initialRoute: '/',
       routes: appRoutes,
-      navigatorObservers: [_observer],
+      // CurrentScreen lets the Negosyo Helper know which screen you are on.
+      navigatorObservers: [_observer, CurrentScreen.instance],
       builder: (context, child) => MediaQuery(
         data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(scale)),
         child: child ?? const SizedBox.shrink(),

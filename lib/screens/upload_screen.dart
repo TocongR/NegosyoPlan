@@ -14,6 +14,7 @@ import '../state/app_state.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
 import '../widgets/form.dart';
+import '../widgets/status_card.dart';
 
 /// S22c · Upload your requirements — the one place where files are added.
 ///
@@ -150,7 +151,7 @@ class _UploadScreenState extends State<UploadScreen> {
             ]),
           ),
           IconButton(tooltip: trn('View'), onPressed: () => _view(f), icon: const Icon(Icons.visibility_outlined)),
-          if (f.status != 'sent') IconButton(tooltip: trn('Remove'), onPressed: _busy ? null : () => _remove(app, f), icon: const Icon(Icons.delete_outline)),
+          if (app.canEditRequirements) IconButton(tooltip: trn('Remove'), onPressed: _busy ? null : () => _remove(app, f), icon: const Icon(Icons.delete_outline)),
         ]),
       );
 
@@ -177,7 +178,8 @@ class _UploadScreenState extends State<UploadScreen> {
     final permit = app.reqFile('permit');
     final annexC = app.reqFile('annexC');
     final trainings = app.trainingFiles;
-    final done = app.submitted;
+    // Locked after submitting, unless OLEDIPO returned it for completion.
+    final done = !app.canEditRequirements;
     final missing = [
       if (permit == null) 'Business permit',
       if (annexC == null) 'Certificate of Residency and Business Operation',
@@ -234,7 +236,7 @@ class _UploadScreenState extends State<UploadScreen> {
           ],
         ),
         if (!done && missing.isNotEmpty) NoteBox('Still needed: ${missing.join(', ')}.', kind: NoteKind.warn),
-        if (done) const NoteBox('Submitted. Your requirements are marked as sent.'),
+        const ApplicationStatusCard(),
         NoteBox(app.backend == null
             ? 'For now your files are kept only on this phone. Sending them to OLEDIPO will be added later.'
             : 'When you submit, your answers and PDFs are sent to OLEDIPO. You need internet for this step.'),

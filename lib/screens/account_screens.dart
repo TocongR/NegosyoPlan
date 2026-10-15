@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../cloud/auth_service.dart';
 import '../config.dart';
 import '../logic/checks.dart';
 import '../state/app_state.dart';
@@ -11,7 +12,9 @@ import '../widgets/common.dart';
 import '../widgets/form.dart';
 import '../i18n/tr.dart';
 
-// S00 Splash · S01 Welcome · A1 Sign up · A2 Verify · A3 Log in · S01b Resume
+// S00 Splash · S01 Welcome · A1 Sign up · A3 Log in · S01b Resume
+// Accounts: full name, mobile number and a 6-digit PIN (Firebase Authentication,
+// see lib/cloud/auth_service.dart). No SMS code for now.
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -34,6 +37,12 @@ class _SplashScreenState extends State<SplashScreen> {
     // First launch: choose the language before anything else.
     if (!app.data.langChosen) {
       Navigator.of(context).pushReplacementNamed('/language');
+      return;
+    }
+    // Still logged in from last time (Firebase keeps the session on the phone).
+    if (AuthService.currentUser != null && app.hasAccount && AuthService.currentUser!.uid == app.data.uid) {
+      app.loggedIn = true;
+      Navigator.of(context).pushReplacementNamed('/resume');
       return;
     }
     Navigator.of(context).pushReplacementNamed(app.hasAccount ? '/login' : '/welcome');
@@ -115,25 +124,37 @@ class SignUpScreen extends StatefulWidget {
 }
 
 class _SignUpScreenState extends State<SignUpScreen> {
-  // TESTING ONLY: kTestAnswers starts the form filled in (PIN 1234).
-  String _name = kTestAnswers ? 'Maria L. Santos' : '', _mobile = kTestAnswers ? '917 123 4567' : '', _pin = kTestAnswers ? '1234' : '';
-  bool _show = false, _agreed = true;
+  // TESTING ONLY: kTestAnswers starts the form filled in (PIN 123456).
+  String _name = kTestAnswers ? 'Maria L. Santos' : '', _mobile = kTestAnswers ? '917 123 4567' : '';
+  String _pin = kTestAnswers ? '123456' : '', _pin2 = kTestAnswers ? '123456' : '';
+  bool _show = false, _agreed = true, _busy = false;
 
-  void _create() {
+  Future<void> _create() async {
     final m = AppState.normalizeMobile(_mobile);
-    if (_name.trim().isEmpty) return toast(context, 'Please type your full name.');
-    if (m.length != 11) return toast(context, 'Please type your 10-digit mobile number after +63.');
-    if (!RegExp(r'^\d{4}$').hasMatch(_pin)) return toast(context, 'Your PIN must be 4 numbers.');
+    if (_name.trim().length < 3 || !_name.trim().contains(' ')) return toast(context, 'Please type your full name (first and last name).');
+    if (m.length != 11 || !m.startsWith('09')) return toast(context, 'Please type your 10-digit mobile number after +63.');
+    if (!RegExp(r'^\d{6}$').hasMatch(_pin)) return toast(context, 'Your PIN must be 6 numbers.');
+    if (_pin != _pin2) return toast(context, 'The two PINs are not the same. Please type them again.');
     if (!_agreed) return toast(context, 'Please agree to the privacy notice.');
-    context.read<AppState>().createAccount(name: _name, mobile: m, pin: _pin);
-    Navigator.pushNamed(context, '/verify');
+    final app = context.read<AppState>();
+    setState(() => _busy = true);
+    try {
+      // Online account (Firebase). Without Firebase the account stays on this phone only.
+      final uid = AuthService.available ? await AuthService.signUp(name: _name, mobile: m, pin: _pin) : '';
+      app.createAccount(name: _name, mobile: m, pin: _pin, uid: uid);
+      if (mounted) Navigator.pushNamedAndRemoveUntil(context, '/privacy', (r) => false);
+    } on AuthFailure catch (e) {
+      if (mounted) toast(context, e.message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) => AppPage(
         headerTrailing: const LogoMark(),
         footer: Footer(vertical: true, [
-          BigButton('Create account', onPressed: _create),
+          BigButton(_busy ? 'Creating your account…' : 'Create account', onPressed: _busy ? null : _create),
           Row(mainAxisAlignment: MainAxisAlignment.center, children: [
             Text(tr('Already have an account? '), style: TextStyle(fontSize: 17)),
             LinkButton('Log in', onPressed: () => Navigator.pushReplacementNamed(context, '/login')),
@@ -144,28 +165,41 @@ class _SignUpScreenState extends State<SignUpScreen> {
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             H1('Create your account'),
             SizedBox(height: 8),
-            Text(tr('No email needed. Your account works even without internet.'), style: AppText.lead),
+            Text(tr('No email needed. Just your name, mobile number and a PIN. You need internet to create the account.'), style: AppText.lead),
           ]),
           FieldBlock(label: 'Full name', example: 'Example: Maria L. Santos', child: AppTextField(initial: _name, hint: 'Your full name', onChanged: (v) => _name = v)),
           FieldBlock(label: 'Mobile number', child: AppTextField(initial: _mobile, hint: '9XX XXX XXXX', prefix: '+63 ', keyboardType: TextInputType.phone, onChanged: (v) => _mobile = v)),
           FieldBlock(
-            label: 'Create a 4-digit PIN',
+            label: 'Create a 6-digit PIN',
             child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               AppTextField(
                 initial: _pin,
-                hint: '••••',
+                hint: '••••••',
                 obscure: !_show,
-                maxLength: 4,
+                maxLength: 6,
                 keyboardType: TextInputType.number,
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 26, letterSpacing: 18),
+                style: const TextStyle(fontSize: 26, letterSpacing: 14),
                 onChanged: (v) => _pin = v,
               ),
               Row(children: [
-                Expanded(child: Text(tr('You will use this to open the app.'), style: AppText.small)),
+                Expanded(child: Text(tr('You will use this to log in. Do not share it.'), style: AppText.small)),
                 TextButton(onPressed: () => setState(() => _show = !_show), child: Text(tr(_show ? 'Hide' : 'Show'))),
               ]),
             ]),
+          ),
+          FieldBlock(
+            label: 'Type the PIN again',
+            child: AppTextField(
+              initial: _pin2,
+              hint: '••••••',
+              obscure: !_show,
+              maxLength: 6,
+              keyboardType: TextInputType.number,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 26, letterSpacing: 14),
+              onChanged: (v) => _pin2 = v,
+            ),
           ),
           Row(children: [
             Checkbox(value: _agreed, onChanged: (v) => setState(() => _agreed = v ?? false)),
@@ -231,26 +265,48 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   String _mobile = '';
-  String _pin = kTestAnswers ? '1234' : ''; // TESTING ONLY
+  String _pin = kTestAnswers ? '123456' : ''; // TESTING ONLY
+  bool _busy = false;
+  static const _len = AuthService.pinLength;
 
   void _press(String k) => setState(() {
         if (k == 'del') {
           if (_pin.isNotEmpty) _pin = _pin.substring(0, _pin.length - 1);
         } else if (k == 'clr') {
           _pin = '';
-        } else if (_pin.length < 4) {
+        } else if (_pin.length < _len) {
           _pin += k;
         }
       });
 
-  void _login() {
+  Future<void> _login() async {
     final app = context.read<AppState>();
-    final mobile = _mobile.isEmpty ? app.data.mobile : _mobile;
-    if (app.login(mobile, _pin)) {
-      Navigator.pushNamedAndRemoveUntil(context, '/resume', (r) => false);
-    } else {
-      setState(() => _pin = '');
-      toast(context, app.hasAccount ? 'Wrong mobile number or PIN. Please try again.' : 'No account on this phone yet. Please create one.');
+    final mobile = AppState.normalizeMobile(_mobile.isEmpty ? app.data.mobile : _mobile);
+    if (mobile.length != 11) return toast(context, 'Please type your 10-digit mobile number after +63.');
+
+    // Phone-only mode (Firebase not started): check the PIN saved on this phone.
+    if (!AuthService.available) {
+      if (app.login(mobile, _pin)) {
+        Navigator.pushNamedAndRemoveUntil(context, '/resume', (r) => false);
+      } else {
+        setState(() => _pin = '');
+        toast(context, app.hasAccount ? 'Wrong mobile number or PIN. Please try again.' : 'No account on this phone yet. Please create one.');
+      }
+      return;
+    }
+
+    setState(() => _busy = true);
+    try {
+      final (uid, name, answers) = await AuthService.logIn(mobile: mobile, pin: _pin);
+      app.startSession(uid: uid, name: name, mobile: mobile, pin: _pin, restored: AuthService.restore(answers));
+      if (mounted) Navigator.pushNamedAndRemoveUntil(context, '/resume', (r) => false);
+    } on AuthFailure catch (e) {
+      if (mounted) {
+        setState(() => _pin = '');
+        toast(context, e.message);
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -278,7 +334,7 @@ class _LoginScreenState extends State<LoginScreen> {
       title: 'Welcome back',
       headerTrailing: const LogoMark(),
       footer: Footer(vertical: true, [
-        BigButton('Log in', onPressed: _pin.length == 4 ? _login : null),
+        BigButton(_busy ? 'Logging in…' : 'Log in', onPressed: _pin.length == _len && !_busy ? _login : null),
         Row(mainAxisAlignment: MainAxisAlignment.center, children: [
           Text(tr('New here? '), style: TextStyle(fontSize: 17)),
           LinkButton('Create an account', onPressed: () => Navigator.pushReplacementNamed(context, '/signup')),
@@ -296,17 +352,17 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
         Row(children: [
-          Expanded(child: Text(tr('Your 4-digit PIN'), style: AppText.label)),
+          Expanded(child: Text(tr('Your 6-digit PIN'), style: AppText.label)),
           LinkButton('Forgot PIN?', onPressed: () => toast(context, 'Visit the OLEDIPO office to reset your PIN.')),
         ]),
         Semantics(
-          label: trn('${_pin.length} of 4 digits entered'),
+          label: trn('${_pin.length} of $_len digits entered'),
           child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            for (var i = 0; i < 4; i++)
+            for (var i = 0; i < _len; i++)
               Container(
                 width: 18,
                 height: 18,
-                margin: const EdgeInsets.symmetric(horizontal: 9),
+                margin: const EdgeInsets.symmetric(horizontal: 7),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: i < _pin.length ? AppColors.primary : Colors.transparent,

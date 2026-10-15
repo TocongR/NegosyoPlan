@@ -11,6 +11,7 @@ import '../state/app_state.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
 import '../widgets/form.dart';
+import '../widgets/status_card.dart';
 import 'review_screens.dart' show fullName, businessAddress;
 import 'statement_download.dart';
 import '../i18n/tr.dart';
@@ -66,6 +67,8 @@ class HomeScreen extends StatelessWidget {
                 ),
                 IconButton(tooltip: trn('Settings'), onPressed: () => Navigator.pushNamed(context, '/settings'), icon: const Icon(Icons.settings_outlined)),
               ]),
+              // After submitting: Pending for checking · Returned for completion · Accepted.
+              if (app.submitted) const ApplicationStatusCard(),
               Row(children: [
                 Container(width: 8, height: 8, decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle)),
                 const SizedBox(width: 8),
